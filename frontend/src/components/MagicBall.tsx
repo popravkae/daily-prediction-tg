@@ -116,7 +116,7 @@ export const MagicBall = ({
 
   const blurredImageRef = useRef<HTMLImageElement | null>(null)
 
-  // Load blurred ball image into canvas
+  // Load blurred ball image into canvas (clipped to circle)
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !isInteractive) return
@@ -134,6 +134,17 @@ export const MagicBall = ({
     img.onload = () => {
       blurredImageRef.current = img
 
+      const centerX = BALL_WIDTH / 2
+      const centerY = BALL_HEIGHT / 2
+      // Ball radius - slightly smaller to avoid edge artifacts
+      const ballRadius = Math.min(BALL_WIDTH, BALL_HEIGHT) / 2 - 8
+
+      // Create circular clipping path FIRST
+      ctx.save()
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, ballRadius, 0, Math.PI * 2)
+      ctx.clip()
+
       // Create offscreen canvas for blur
       const offscreen = document.createElement('canvas')
       offscreen.width = BALL_WIDTH
@@ -141,25 +152,25 @@ export const MagicBall = ({
       const offCtx = offscreen.getContext('2d')
       if (!offCtx) return
 
-      // Draw blurred image
+      // Draw blurred image on offscreen
       offCtx.filter = 'blur(8px) brightness(1.15)'
       offCtx.drawImage(img, 0, 0, BALL_WIDTH, BALL_HEIGHT)
 
-      // Draw to main canvas
+      // Draw to main canvas (clipped to circle)
       ctx.drawImage(offscreen, 0, 0)
 
       // Add frosted overlay
-      const centerX = BALL_WIDTH / 2
-      const centerY = BALL_HEIGHT / 2
-      const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, BALL_WIDTH / 2)
+      const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, ballRadius)
       gradient.addColorStop(0, 'rgba(220, 200, 240, 0.35)')
       gradient.addColorStop(0.7, 'rgba(200, 180, 220, 0.4)')
-      gradient.addColorStop(1, 'rgba(180, 160, 200, 0.2)')
+      gradient.addColorStop(1, 'rgba(180, 160, 200, 0.3)')
 
       ctx.fillStyle = gradient
       ctx.beginPath()
-      ctx.arc(centerX, centerY, BALL_WIDTH / 2 - 10, 0, Math.PI * 2)
+      ctx.arc(centerX, centerY, ballRadius, 0, Math.PI * 2)
       ctx.fill()
+
+      ctx.restore()
     }
     img.src = '/images/ball.svg'
   }, [isInteractive, BALL_WIDTH, BALL_HEIGHT])
