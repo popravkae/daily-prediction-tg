@@ -77,10 +77,10 @@ export const MagicBall = ({
     const canvasX = (x - rect.left) * (canvas.width / rect.width)
     const canvasY = (y - rect.top) * (canvas.height / rect.height)
 
-    // Check if within ball circle (slightly smaller to avoid edges)
+    // Check if within circle
     const centerX = canvas.width / 2
     const centerY = canvas.height / 2
-    const radius = Math.min(canvas.width, canvas.height) / 2 - 15
+    const radius = canvas.width / 2 - 5
     const dx = canvasX - centerX
     const dy = canvasY - centerY
     if (dx * dx + dy * dy > radius * radius) return
@@ -91,20 +91,20 @@ export const MagicBall = ({
     ctx.beginPath()
     ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y)
     ctx.lineTo(canvasX, canvasY)
-    ctx.lineWidth = 50
+    ctx.lineWidth = 45
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
     ctx.stroke()
 
     // Draw scratch circle at current position
     ctx.beginPath()
-    ctx.arc(canvasX, canvasY, 25, 0, Math.PI * 2)
+    ctx.arc(canvasX, canvasY, 22, 0, Math.PI * 2)
     ctx.fill()
 
     lastPosRef.current = { x: canvasX, y: canvasY }
     triggerHaptic()
 
-    const percentage = calculateRevealPercentage(ctx, Math.min(canvas.width, canvas.height))
+    const percentage = calculateRevealPercentage(ctx, canvas.width)
     setLocalProgress(percentage)
     onProgress?.(percentage)
 
@@ -116,7 +116,10 @@ export const MagicBall = ({
 
   const blurredImageRef = useRef<HTMLImageElement | null>(null)
 
-  // Load blurred ball image into canvas (clipped to circle)
+  // Canvas dimensions - slightly smaller circle inside the ball
+  const CANVAS_SIZE = Math.min(BALL_WIDTH, BALL_HEIGHT) - 30
+
+  // Load blurred ball image into canvas
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !isInteractive) return
@@ -124,26 +127,15 @@ export const MagicBall = ({
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // Set canvas size to match ball
-    canvas.width = BALL_WIDTH
-    canvas.height = BALL_HEIGHT
+    // Set canvas to square for perfect circle
+    canvas.width = CANVAS_SIZE
+    canvas.height = CANVAS_SIZE
 
     // Load ball image
     const img = new Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => {
       blurredImageRef.current = img
-
-      const centerX = BALL_WIDTH / 2
-      const centerY = BALL_HEIGHT / 2
-      // Ball radius - slightly smaller to avoid edge artifacts
-      const ballRadius = Math.min(BALL_WIDTH, BALL_HEIGHT) / 2 - 8
-
-      // Create circular clipping path FIRST
-      ctx.save()
-      ctx.beginPath()
-      ctx.arc(centerX, centerY, ballRadius, 0, Math.PI * 2)
-      ctx.clip()
 
       // Create offscreen canvas for blur
       const offscreen = document.createElement('canvas')
@@ -153,27 +145,29 @@ export const MagicBall = ({
       if (!offCtx) return
 
       // Draw blurred image on offscreen
-      offCtx.filter = 'blur(8px) brightness(1.15)'
+      offCtx.filter = 'blur(8px) brightness(1.1)'
       offCtx.drawImage(img, 0, 0, BALL_WIDTH, BALL_HEIGHT)
 
-      // Draw to main canvas (clipped to circle)
-      ctx.drawImage(offscreen, 0, 0)
+      // Draw centered portion to main canvas
+      const offsetX = (BALL_WIDTH - CANVAS_SIZE) / 2
+      const offsetY = (BALL_HEIGHT - CANVAS_SIZE) / 2
+      ctx.drawImage(offscreen, offsetX, offsetY, CANVAS_SIZE, CANVAS_SIZE, 0, 0, CANVAS_SIZE, CANVAS_SIZE)
 
       // Add frosted overlay
-      const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, ballRadius)
-      gradient.addColorStop(0, 'rgba(220, 200, 240, 0.35)')
-      gradient.addColorStop(0.7, 'rgba(200, 180, 220, 0.4)')
-      gradient.addColorStop(1, 'rgba(180, 160, 200, 0.3)')
+      const centerX = CANVAS_SIZE / 2
+      const centerY = CANVAS_SIZE / 2
+      const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, CANVAS_SIZE / 2)
+      gradient.addColorStop(0, 'rgba(220, 200, 240, 0.3)')
+      gradient.addColorStop(0.7, 'rgba(200, 180, 220, 0.35)')
+      gradient.addColorStop(1, 'rgba(180, 160, 200, 0.25)')
 
       ctx.fillStyle = gradient
       ctx.beginPath()
-      ctx.arc(centerX, centerY, ballRadius, 0, Math.PI * 2)
+      ctx.arc(centerX, centerY, CANVAS_SIZE / 2, 0, Math.PI * 2)
       ctx.fill()
-
-      ctx.restore()
     }
     img.src = '/images/ball.svg'
-  }, [isInteractive, BALL_WIDTH, BALL_HEIGHT])
+  }, [isInteractive, CANVAS_SIZE])
 
   const handleStart = (x: number, y: number) => {
     const canvas = canvasRef.current
@@ -289,10 +283,14 @@ export const MagicBall = ({
           {isInteractive && !isRevealed && (
             <canvas
               ref={canvasRef}
-              className="absolute inset-0 cursor-pointer touch-none"
+              className="absolute cursor-pointer touch-none"
               style={{
-                width: BALL_WIDTH,
-                height: BALL_HEIGHT,
+                width: CANVAS_SIZE,
+                height: CANVAS_SIZE,
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                borderRadius: '50%',
               }}
               onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
               onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
