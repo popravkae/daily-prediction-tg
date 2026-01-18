@@ -84,15 +84,20 @@ export const EnergyAura = ({ progress }: EnergyAuraProps) => {
 
   return (
     <motion.div
-      className="absolute pointer-events-none"
+      className="absolute pointer-events-none -z-10"
       style={{
         width: auraSize,
         height: auraSize,
         left: '50%',
         top: BALL_HEIGHT / 2,
-        transform: 'translate(-50%, -50%)',
+        marginLeft: -auraSize / 2,
+        marginTop: -auraSize / 2 + BALL_HEIGHT / 2,
         scale: springScale,
         opacity,
+        // GPU acceleration for smooth animations
+        transform: 'translateZ(0)',
+        willChange: 'transform, opacity',
+        backfaceVisibility: 'hidden',
       }}
     >
       {/* Outer rotating ring */}
@@ -102,6 +107,9 @@ export const EnergyAura = ({ progress }: EnergyAuraProps) => {
           background: `conic-gradient(from 0deg, ${colors.primary}, transparent, ${colors.secondary}, transparent, ${colors.primary})`,
           borderRadius: '50%',
           filter: 'blur(20px)',
+          // GPU layer for smooth rotation
+          willChange: 'transform',
+          backfaceVisibility: 'hidden',
         }}
         animate={{
           rotate: 360,
@@ -121,6 +129,8 @@ export const EnergyAura = ({ progress }: EnergyAuraProps) => {
         style={{
           background: `radial-gradient(circle, ${colors.glow} 0%, transparent 70%)`,
           borderRadius: '50%',
+          willChange: 'transform, opacity',
+          backfaceVisibility: 'hidden',
         }}
         animate={{
           scale: shouldPulse ? [1, 1.15, 1] : 1,
@@ -140,6 +150,8 @@ export const EnergyAura = ({ progress }: EnergyAuraProps) => {
           background: `conic-gradient(from 180deg, transparent, ${colors.secondary}, transparent, ${colors.primary}, transparent)`,
           borderRadius: '50%',
           filter: 'blur(15px)',
+          willChange: 'transform',
+          backfaceVisibility: 'hidden',
         }}
         animate={{
           rotate: -360,
@@ -167,6 +179,9 @@ export const EnergyAura = ({ progress }: EnergyAuraProps) => {
                 boxShadow: `0 0 ${progress >= 70 ? 15 : 10}px ${colors.particle}`,
                 left: '50%',
                 top: '50%',
+                // GPU acceleration for particles
+                willChange: 'transform, opacity',
+                backfaceVisibility: 'hidden',
               }}
               animate={{
                 x: [0, Math.cos((i * 45) * Math.PI / 180) * (auraSize / 2 - 20), 0],
@@ -199,6 +214,8 @@ export const EnergyAura = ({ progress }: EnergyAuraProps) => {
                 boxShadow: '0 0 8px #fff, 0 0 16px #ffd700',
                 left: '50%',
                 top: '50%',
+                willChange: 'transform, opacity',
+                backfaceVisibility: 'hidden',
               }}
               animate={{
                 x: [0, Math.cos((i * 22.5) * Math.PI / 180) * (80 + Math.random() * 40)],
@@ -228,6 +245,8 @@ export const EnergyAura = ({ progress }: EnergyAuraProps) => {
                 top: '50%',
                 transformOrigin: 'top center',
                 rotate: i * 90,
+                willChange: 'transform, opacity',
+                backfaceVisibility: 'hidden',
               }}
               animate={{
                 opacity: [0, 1, 0],

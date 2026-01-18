@@ -5,7 +5,6 @@ import {
   InteractiveBackground,
   MagicBall,
   Loader,
-  ShareButton,
   ProgressText,
   PredictionBubble
 } from './components'
@@ -32,57 +31,20 @@ function App() {
     }
   }, [])
 
-  // Explosion confetti from the center (as per spec)
+  // Quick explosion confetti - appears fast and disappears behind popup
   const explodeConfetti = useCallback(() => {
-    // First burst - center explosion
+    // Single powerful burst - quick explosion
     confetti({
-      particleCount: 100,
-      spread: 100,
-      origin: { x: 0.5, y: 0.45 }, // Center of the ball
+      particleCount: 150,
+      spread: 360,
+      origin: { x: 0.5, y: 0.45 },
       colors: ['#7b2cbf', '#00d4ff', '#ffd700', '#ff6b6b', '#ffffff'],
-      startVelocity: 45,
-      gravity: 0.8,
+      startVelocity: 50,
+      gravity: 1.5, // Fast fall
+      decay: 0.95,
+      ticks: 80, // Short lifetime
+      zIndex: 40, // Behind popup (z-50)
     })
-
-    // Second burst - delayed for effect
-    setTimeout(() => {
-      confetti({
-        particleCount: 50,
-        spread: 120,
-        origin: { x: 0.5, y: 0.45 },
-        colors: ['#ffd700', '#ffffff', '#00d4ff'],
-        startVelocity: 35,
-      })
-    }, 100)
-
-    // Side confetti streams
-    const duration = 2000
-    const end = Date.now() + duration
-
-    const colors = ['#7b2cbf', '#00d4ff', '#ffd700', '#ff6b6b']
-
-    const frame = () => {
-      confetti({
-        particleCount: 2,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0, y: 0.7 },
-        colors
-      })
-      confetti({
-        particleCount: 2,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1, y: 0.7 },
-        colors
-      })
-
-      if (Date.now() < end) {
-        requestAnimationFrame(frame)
-      }
-    }
-
-    frame()
   }, [])
 
   const fetchPrediction = useCallback(async () => {
@@ -140,11 +102,11 @@ function App() {
     // 3. Explode confetti from center
     explodeConfetti()
 
-    // 4. Change phase to revealed
+    // 4. Change phase to revealed (ball disappears)
     setPhase('revealed')
 
-    // 5. Show prediction bubble after a short delay
-    setTimeout(() => setShowBubble(true), 600)
+    // 5. Show prediction bubble immediately after flash
+    setTimeout(() => setShowBubble(true), 200)
   }, [triggerSuccessHaptic, explodeConfetti])
 
   const handleCloseBubble = useCallback(() => {
@@ -195,56 +157,29 @@ function App() {
             </motion.div>
           )}
 
-          {(phase === 'interactive' || phase === 'revealed') && (
+          {phase === 'interactive' && (
             <motion.div
               key="main"
               className="flex flex-col items-center"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
             >
               {/* Progress text messages - above the ball */}
-              {phase === 'interactive' && (
-                <div className="mb-4">
-                  <ProgressText progress={scratchProgress} isRevealed={false} />
-                </div>
-              )}
+              <div className="mb-4">
+                <ProgressText progress={scratchProgress} isRevealed={false} />
+              </div>
 
               {/* Magic Ball with integrated scratch layer */}
               <div className="relative">
                 <MagicBall
                   scratchProgress={scratchProgress}
-                  isInteractive={phase === 'interactive'}
+                  isInteractive={true}
                   onProgress={setScratchProgress}
                   onReveal={handleReveal}
-                >
-                  <AnimatePresence>
-                    {phase === 'revealed' && (
-                      <motion.p
-                        className="prediction-text"
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.3 }}
-                      >
-                        {prediction}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-                </MagicBall>
+                />
               </div>
-
-              {/* Share button (only after reveal) */}
-              <AnimatePresence>
-                {phase === 'revealed' && (
-                  <motion.div
-                    className="mt-8"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8 }}
-                  >
-                    <ShareButton prediction={prediction} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </motion.div>
           )}
         </AnimatePresence>

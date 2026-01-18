@@ -32,6 +32,10 @@ export const MagicBall = ({
   const isDrawingRef = useRef(false)
   const lastPosRef = useRef({ x: 0, y: 0 })
 
+  // Throttle progress calculation to reduce getImageData calls
+  const lastCalcRef = useRef(0)
+  const scratchCountRef = useRef(0)
+
   const getTelegram = () => window.Telegram?.WebApp
 
   // Throttle haptic to avoid too many calls
@@ -92,7 +96,7 @@ export const MagicBall = ({
     const canvas = canvasRef.current
     if (!canvas || isRevealed || !isInteractive) return
 
-    const ctx = canvas.getContext('2d')
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return
 
     const rect = canvas.getBoundingClientRect()
@@ -126,13 +130,24 @@ export const MagicBall = ({
     lastPosRef.current = { x: canvasX, y: canvasY }
     triggerHaptic()
 
-    const percentage = calculateRevealPercentage(ctx, canvas.width)
-    setLocalProgress(percentage)
-    onProgress?.(percentage)
+    // Throttle expensive getImageData - only calculate every 5 scratches or 100ms
+    scratchCountRef.current++
+    const now = Date.now()
+    const shouldCalculate = scratchCountRef.current % 5 === 0 || now - lastCalcRef.current > 100
 
-    if (percentage >= revealThreshold && !isRevealed) {
-      setIsRevealed(true)
-      onReveal?.()
+    if (shouldCalculate) {
+      lastCalcRef.current = now
+      // Use requestAnimationFrame to defer calculation and avoid blocking paint
+      requestAnimationFrame(() => {
+        const percentage = calculateRevealPercentage(ctx, canvas.width)
+        setLocalProgress(percentage)
+        onProgress?.(percentage)
+
+        if (percentage >= revealThreshold && !isRevealed) {
+          setIsRevealed(true)
+          onReveal?.()
+        }
+      })
     }
   }, [isRevealed, isInteractive, onReveal, onProgress, revealThreshold, triggerHaptic, calculateRevealPercentage])
 
@@ -249,33 +264,15 @@ export const MagicBall = ({
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.8, ease: 'easeOut' }}
     >
-      {/* Energy Aura - behind the ball */}
-      <EnergyAura progress={currentProgress} />
-
-      {/* Outer glow - reactive to progress */}
-      <motion.div
-        className="absolute"
-        style={{
-          top: -32,
-          left: (STAND_WIDTH - BALL_WIDTH) / 2 - 32,
-          width: BALL_WIDTH + 64,
-          height: BALL_HEIGHT + 64,
-          background: `radial-gradient(circle, ${glowColor} 0%, transparent 70%)`,
-          scale: springGlowScale,
-        }}
-        animate={{
-          opacity: [0.5, 0.8, 0.5]
-        }}
-        transition={{
-          duration: currentProgress >= 70 ? 1.5 : 3,
-          repeat: Infinity,
-          ease: 'easeInOut'
-        }}
-      />
-
       {/* Ball and Stand composition */}
       <motion.div
         className="relative flex flex-col items-center"
+        style={{
+          // Force GPU compositing for smooth animations
+          willChange: 'transform',
+          backfaceVisibility: 'hidden',
+          transformStyle: 'preserve-3d',
+        }}
         animate={isShaking ? {
           x: [-shakeIntensity, shakeIntensity, -shakeIntensity, shakeIntensity, 0],
           y: [-shakeIntensity * 0.5, shakeIntensity * 0.5, -shakeIntensity * 0.5, 0],
@@ -293,13 +290,53 @@ export const MagicBall = ({
           ease: 'easeInOut'
         }}
       >
+        {/* Energy Aura - behind the ball, moves with ball */}
+        <EnergyAura progress={currentProgress} />
+
+        {/* Outer glow - reactive to progress */}
+        <motion.div
+          className="absolute"
+          style={{
+            top: -32,
+            left: (STAND_WIDTH - BALL_WIDTH) / 2 - 32,
+            width: BALL_WIDTH + 64,
+            height: BALL_HEIGHT + 64,
+            background: `radial-gradient(circle, ${glowColor} 0%, transparent 70%)`,
+            scale: springGlowScale,
+            // GPU acceleration
+            willChange: 'transform, opacity',
+            backfaceVisibility: 'hidden',
+          }}
+          animate={{
+            opacity: [0.5, 0.8, 0.5]
+          }}
+          transition={{
+            duration: currentProgress >= 70 ? 1.5 : 3,
+            repeat: Infinity,
+            ease: 'easeInOut'
+          }}
+        />
         {/* Ball container with scratch overlay */}
-        <div className="relative" style={{ width: BALL_WIDTH, height: BALL_HEIGHT }}>
+        <div
+          className="relative"
+          style={{
+            width: BALL_WIDTH,
+            height: BALL_HEIGHT,
+            // GPU layer promotion for smooth compositing
+            transform: 'translateZ(0)',
+            willChange: 'transform',
+          }}
+        >
           {/* Layer 1: Clear ball (always visible underneath) */}
           <img
             src="/images/ball.svg"
             alt="Magic Ball"
             className="w-full h-full object-contain absolute inset-0"
+            style={{
+              // Prevent flicker during compositing
+              backfaceVisibility: 'hidden',
+              transform: 'translateZ(0)',
+            }}
           />
 
           {/* Layer 2: Canvas with blurred ball - scratches reveal clear ball underneath */}
@@ -312,8 +349,12 @@ export const MagicBall = ({
                 height: CANVAS_SIZE,
                 top: '50%',
                 left: '50%',
-                transform: 'translate(-50%, -50%)',
+                // Use transform3d for GPU acceleration, prevents flicker
+                transform: 'translate3d(-50%, -50%, 0)',
                 borderRadius: '50%',
+                // Promote to own compositor layer
+                willChange: 'contents',
+                backfaceVisibility: 'hidden',
               }}
               onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
               onMouseMove={(e) => handleMove(e.clientX, e.clientY)}

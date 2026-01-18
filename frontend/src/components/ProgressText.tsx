@@ -9,11 +9,10 @@ interface ProgressTextProps {
 // UI Copywriting from the spec (based on % progress)
 const getProgressMessage = (progress: number): string => {
   if (progress < 10) return "Ну, почнемо магію..."
-  if (progress < 30) return "Ого, пішло тепло!"
-  if (progress < 40) return "Ще активніше! Бачу спалахи!"
-  if (progress < 70) return "Як чудово виглядає шар! Він як полірований!"
-  if (progress < 90) return "Тільки не протри до дірок!"
-  if (progress < 100) return "Зараз бахне! Готовий?"
+  if (progress < 40) return "Ого, пішло тепло!"
+  if (progress < 70) return "Блищить, як лисина у Він Дізеля!"
+  if (progress < 90) return "Тільки не протри до зірок!"
+  if (progress < 100) return "Завантаження магії... 99%..."
   return ""
 }
 
