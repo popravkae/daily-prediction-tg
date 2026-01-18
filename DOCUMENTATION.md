@@ -205,7 +205,7 @@ VITE_API_URL=https://backend-production-3436.up.railway.app
 
 ## Telegram Bot
 
-Токен бота: `7621065770:AAGcHj_IE416pP0fM1EcrZveXsSmVPeIgKc`
+Токен бота зберігається в змінних середовища (`BOT_TOKEN`). Отримати новий токен можна через @BotFather.
 
 Для налаштування Mini App:
 1. Відкрийте @BotFather
