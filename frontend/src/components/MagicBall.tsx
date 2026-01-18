@@ -32,9 +32,6 @@ export const MagicBall = ({
   const isDrawingRef = useRef(false)
   const lastPosRef = useRef({ x: 0, y: 0 })
 
-  // Scratch canvas size matches ball sphere area
-  const SCRATCH_DIAMETER = BALL_WIDTH - 20
-
   const getTelegram = () => window.Telegram?.WebApp
 
   const triggerHaptic = useCallback(() => {
@@ -80,31 +77,34 @@ export const MagicBall = ({
     const canvasX = (x - rect.left) * (canvas.width / rect.width)
     const canvasY = (y - rect.top) * (canvas.height / rect.height)
 
+    // Check if within ball circle (slightly smaller to avoid edges)
     const centerX = canvas.width / 2
     const centerY = canvas.height / 2
-    const radius = canvas.width / 2
+    const radius = Math.min(canvas.width, canvas.height) / 2 - 15
     const dx = canvasX - centerX
     const dy = canvasY - centerY
     if (dx * dx + dy * dy > radius * radius) return
 
     ctx.globalCompositeOperation = 'destination-out'
 
+    // Draw scratch line
     ctx.beginPath()
     ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y)
     ctx.lineTo(canvasX, canvasY)
-    ctx.lineWidth = 45
+    ctx.lineWidth = 50
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
     ctx.stroke()
 
+    // Draw scratch circle at current position
     ctx.beginPath()
-    ctx.arc(canvasX, canvasY, 22, 0, Math.PI * 2)
+    ctx.arc(canvasX, canvasY, 25, 0, Math.PI * 2)
     ctx.fill()
 
     lastPosRef.current = { x: canvasX, y: canvasY }
     triggerHaptic()
 
-    const percentage = calculateRevealPercentage(ctx, canvas.width)
+    const percentage = calculateRevealPercentage(ctx, Math.min(canvas.width, canvas.height))
     setLocalProgress(percentage)
     onProgress?.(percentage)
 
@@ -114,7 +114,9 @@ export const MagicBall = ({
     }
   }, [isRevealed, isInteractive, onReveal, onProgress, revealThreshold, triggerHaptic, calculateRevealPercentage])
 
-  // Initialize scratch canvas with blur layer
+  const blurredImageRef = useRef<HTMLImageElement | null>(null)
+
+  // Load blurred ball image into canvas
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !isInteractive) return
@@ -122,19 +124,45 @@ export const MagicBall = ({
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    canvas.width = SCRATCH_DIAMETER
-    canvas.height = SCRATCH_DIAMETER
+    // Set canvas size to match ball
+    canvas.width = BALL_WIDTH
+    canvas.height = BALL_HEIGHT
 
-    const centerX = SCRATCH_DIAMETER / 2
-    const centerY = SCRATCH_DIAMETER / 2
-    const radius = SCRATCH_DIAMETER / 2
+    // Load ball image
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      blurredImageRef.current = img
 
-    // Draw frosted glass effect
-    ctx.beginPath()
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(200, 180, 220, 0.5)'
-    ctx.fill()
-  }, [isInteractive, SCRATCH_DIAMETER])
+      // Create offscreen canvas for blur
+      const offscreen = document.createElement('canvas')
+      offscreen.width = BALL_WIDTH
+      offscreen.height = BALL_HEIGHT
+      const offCtx = offscreen.getContext('2d')
+      if (!offCtx) return
+
+      // Draw blurred image
+      offCtx.filter = 'blur(8px) brightness(1.15)'
+      offCtx.drawImage(img, 0, 0, BALL_WIDTH, BALL_HEIGHT)
+
+      // Draw to main canvas
+      ctx.drawImage(offscreen, 0, 0)
+
+      // Add frosted overlay
+      const centerX = BALL_WIDTH / 2
+      const centerY = BALL_HEIGHT / 2
+      const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, BALL_WIDTH / 2)
+      gradient.addColorStop(0, 'rgba(220, 200, 240, 0.35)')
+      gradient.addColorStop(0.7, 'rgba(200, 180, 220, 0.4)')
+      gradient.addColorStop(1, 'rgba(180, 160, 200, 0.2)')
+
+      ctx.fillStyle = gradient
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, BALL_WIDTH / 2 - 10, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    img.src = '/images/ball.svg'
+  }, [isInteractive, BALL_WIDTH, BALL_HEIGHT])
 
   const handleStart = (x: number, y: number) => {
     const canvas = canvasRef.current
@@ -237,7 +265,7 @@ export const MagicBall = ({
           ease: 'easeInOut'
         }}
       >
-        {/* Ball container with two layers */}
+        {/* Ball container with scratch overlay */}
         <div className="relative" style={{ width: BALL_WIDTH, height: BALL_HEIGHT }}>
           {/* Layer 1: Clear ball (always visible underneath) */}
           <img
@@ -246,83 +274,45 @@ export const MagicBall = ({
             className="w-full h-full object-contain absolute inset-0"
           />
 
-          {/* Layer 2: Frosted glass overlay - fades out as you scratch to reveal clear ball */}
+          {/* Layer 2: Canvas with blurred ball - scratches reveal clear ball underneath */}
           {isInteractive && !isRevealed && (
-            <motion.div
-              className="absolute inset-0 pointer-events-none"
+            <canvas
+              ref={canvasRef}
+              className="absolute inset-0 cursor-pointer touch-none"
               style={{
-                opacity: 1 - (currentProgress / 100), // Fade out as progress increases
+                width: BALL_WIDTH,
+                height: BALL_HEIGHT,
               }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
-            >
-              {/* Heavy blur + brightness to create frosted glass effect */}
-              <img
-                src="/images/ball.svg"
-                alt=""
-                className="w-full h-full object-contain"
-                style={{ filter: 'blur(25px) brightness(1.3) saturate(0.7)' }}
-              />
-              {/* Semi-transparent overlay for more frost */}
-              <div
-                className="absolute inset-0 rounded-full"
-                style={{
-                  background: 'radial-gradient(circle, rgba(200, 180, 220, 0.4) 0%, rgba(180, 160, 200, 0.5) 70%, transparent 100%)',
-                  margin: '5%',
-                }}
-              />
-            </motion.div>
+              onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
+              onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
+              onMouseUp={handleEnd}
+              onMouseLeave={handleEnd}
+              onTouchStart={(e) => {
+                e.preventDefault()
+                const touch = e.touches[0]
+                handleStart(touch.clientX, touch.clientY)
+              }}
+              onTouchMove={(e) => {
+                e.preventDefault()
+                const touch = e.touches[0]
+                handleMove(touch.clientX, touch.clientY)
+              }}
+              onTouchEnd={handleEnd}
+            />
           )}
 
-          {/* Scratch canvas - captures touch/mouse events */}
+          {/* Hint text */}
           {isInteractive && !isRevealed && (
-            <div
-              className="absolute pointer-events-auto"
-              style={{
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: SCRATCH_DIAMETER,
-                height: SCRATCH_DIAMETER,
-              }}
+            <motion.div
+              className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: currentProgress < 10 ? 1 : 0 }}
+              transition={{ duration: 0.3 }}
             >
-              <canvas
-                ref={canvasRef}
-                className="cursor-pointer touch-none rounded-full"
-                style={{
-                  width: SCRATCH_DIAMETER,
-                  height: SCRATCH_DIAMETER,
-                  opacity: 0, // Invisible - just for touch detection
-                }}
-                onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
-                onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
-                onMouseUp={handleEnd}
-                onMouseLeave={handleEnd}
-                onTouchStart={(e) => {
-                  e.preventDefault()
-                  const touch = e.touches[0]
-                  handleStart(touch.clientX, touch.clientY)
-                }}
-                onTouchMove={(e) => {
-                  e.preventDefault()
-                  const touch = e.touches[0]
-                  handleMove(touch.clientX, touch.clientY)
-                }}
-                onTouchEnd={handleEnd}
-              />
-
-              {/* Hint text */}
-              <motion.div
-                className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: currentProgress < 10 ? 1 : 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <p className="text-white/90 text-base font-medium text-center px-4 drop-shadow-lg">
-                  Потри кришталеву кулю
-                </p>
-              </motion.div>
-            </div>
+              <p className="text-white/90 text-base font-medium text-center px-4 drop-shadow-lg">
+                Потри кришталеву кулю
+              </p>
+            </motion.div>
           )}
 
           {/* Inner content overlay */}
