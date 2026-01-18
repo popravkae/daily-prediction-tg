@@ -4,7 +4,6 @@ import confetti from 'canvas-confetti'
 import {
   InteractiveBackground,
   MagicBall,
-  ScratchLayer,
   Loader,
   ShareButton,
   ProgressText,
@@ -210,11 +209,13 @@ function App() {
                 </div>
               )}
 
-              {/* Magic Ball with scratch layer - now with scratchProgress */}
+              {/* Magic Ball with integrated scratch layer */}
               <div className="relative">
                 <MagicBall
-                  blurAmount={phase === 'interactive' ? 12 - (scratchProgress / 100) * 12 : 0}
-                  scratchProgress={phase === 'interactive' ? scratchProgress : 0}
+                  scratchProgress={scratchProgress}
+                  isInteractive={phase === 'interactive'}
+                  onProgress={setScratchProgress}
+                  onReveal={handleReveal}
                 >
                   <AnimatePresence>
                     {phase === 'revealed' && (
@@ -229,13 +230,6 @@ function App() {
                     )}
                   </AnimatePresence>
                 </MagicBall>
-
-                {/* Scratch layer overlay */}
-                {phase === 'interactive' && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <ScratchLayer onReveal={handleReveal} onProgress={setScratchProgress} />
-                  </div>
-                )}
               </div>
 
               {/* Share button (only after reveal) */}
