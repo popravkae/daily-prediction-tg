@@ -179,11 +179,6 @@ export const MagicBall = ({
     return 'rgba(255, 255, 255, 0.6)'
   }, [currentProgress])
 
-  // Calculate blur amount based on progress
-  const blurAmount = isInteractive && !isRevealed
-    ? Math.max(0, 12 - (currentProgress / 100) * 12)
-    : 0
-
   const glowScale = useTransform(progress, [0, 50, 100], [1, 1.15, 1.25])
   const springGlowScale = useSpring(glowScale, { stiffness: 150, damping: 20 })
 
@@ -242,18 +237,37 @@ export const MagicBall = ({
           ease: 'easeInOut'
         }}
       >
-        {/* Ball SVG - with blur that gets scratched away */}
+        {/* Ball container with two layers */}
         <div className="relative" style={{ width: BALL_WIDTH, height: BALL_HEIGHT }}>
+          {/* Layer 1: Clear ball (always visible underneath) */}
           <img
             src="/images/ball.svg"
             alt="Magic Ball"
-            className="w-full h-full object-contain transition-all duration-300"
-            style={{ filter: `blur(${blurAmount}px)` }}
+            className="w-full h-full object-contain absolute inset-0"
           />
 
-          {/* Scratch canvas - positioned over the ball sphere, moves with the ball */}
+          {/* Layer 2: Blurred ball overlay - opacity decreases as you scratch */}
           {isInteractive && !isRevealed && (
             <motion.div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                opacity: 1 - (currentProgress / 100), // Fade out as progress increases
+              }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+            >
+              <img
+                src="/images/ball.svg"
+                alt=""
+                className="w-full h-full object-contain"
+                style={{ filter: 'blur(12px)' }}
+              />
+            </motion.div>
+          )}
+
+          {/* Scratch canvas - captures touch/mouse events */}
+          {isInteractive && !isRevealed && (
+            <div
               className="absolute pointer-events-auto"
               style={{
                 top: '50%',
@@ -262,16 +276,14 @@ export const MagicBall = ({
                 width: SCRATCH_DIAMETER,
                 height: SCRATCH_DIAMETER,
               }}
-              initial={{ opacity: 1 }}
-              exit={{ opacity: 0, scale: 1.1 }}
-              transition={{ duration: 0.5 }}
             >
               <canvas
                 ref={canvasRef}
-                className="cursor-pointer touch-none absolute rounded-full"
+                className="cursor-pointer touch-none rounded-full"
                 style={{
                   width: SCRATCH_DIAMETER,
                   height: SCRATCH_DIAMETER,
+                  opacity: 0, // Invisible - just for touch detection
                 }}
                 onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
                 onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
@@ -290,7 +302,7 @@ export const MagicBall = ({
                 onTouchEnd={handleEnd}
               />
 
-              {/* Hint text - inside scratch area */}
+              {/* Hint text */}
               <motion.div
                 className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
                 initial={{ opacity: 0 }}
@@ -301,10 +313,10 @@ export const MagicBall = ({
                   Потри кришталеву кулю
                 </p>
               </motion.div>
-            </motion.div>
+            </div>
           )}
 
-          {/* Inner content overlay - positioned in the center of the ball sphere */}
+          {/* Inner content overlay */}
           <div
             className="absolute flex items-center justify-center pointer-events-none"
             style={{
