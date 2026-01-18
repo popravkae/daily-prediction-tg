@@ -1,1 +1,1 @@
-web: npx prisma migrate deploy && node src/index.js
+web: npx prisma db push && node src/index.js
