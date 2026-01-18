@@ -116,11 +116,27 @@ async function generatePrediction(firstName) {
     return getRandomFallbackPrediction();
   }
 
-  const systemPrompt = `You are a cynical but caring Pharmacist-Mage. Give a short, funny daily prediction (max 150 chars). Mix magic with health advice (vitamins, sleep, nerves). Language: Ukrainian.`;
+  // System prompt from spec - "Pharmacist-Mage" for ANC pharmacy brand
+  const systemPrompt = `You are a quirky, positive, and slightly cynical "Pharmacist-Mage" for the ANC pharmacy brand.
+Your task is to generate a Daily Prediction for the user.
+
+constraints:
+1. Language: Ukrainian.
+2. Length: Max 150 characters (Very short and punchy).
+3. Tone: Humorous, warm, neutral, slightly magical but grounded in reality.
+4. Topics: Luck, Energy, Vitamins, Sleep, Nerves, Cats, Work-Life Balance.
+5. RESTRICTIONS: No politics, no religion, no offensive content, no medical diagnoses.
+
+Style Examples:
+- "Зорі кажуть: сьогодні ідеальний день, щоб нічого не робити, але після роботи."
+- "Твій рівень удачі сьогодні: 'Знайшов 50 гривень у зимовій куртці'."
+- "Не приймай все близько до серця, приймай вітаміни."
+- "Сьогодні ти магніт для успіху. І для котиків."
+- "Енергія зашкалює! Можеш заряджати телефони поглядом."`;
 
   const userPrompt = firstName
-    ? `Generate a daily prediction for ${firstName}.`
-    : `Generate a daily prediction.`;
+    ? `Generate a short daily prediction for ${firstName}. Max 150 characters.`
+    : `Generate a short daily prediction. Max 150 characters.`;
 
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -138,7 +154,7 @@ async function generatePrediction(firstName) {
           { role: 'user', content: userPrompt }
         ],
         max_tokens: 200,
-        temperature: 0.9
+        temperature: 0.8 // Creative as per spec
       })
     });
 

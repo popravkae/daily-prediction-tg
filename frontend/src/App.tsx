@@ -4,10 +4,11 @@ import confetti from 'canvas-confetti'
 import {
   InteractiveBackground,
   MagicBall,
-  Stand,
   ScratchLayer,
   Loader,
-  ShareButton
+  ShareButton,
+  ProgressText,
+  PredictionBubble
 } from './components'
 
 type AppPhase = 'loading' | 'interactive' | 'revealed'
@@ -18,6 +19,9 @@ function App() {
   const [phase, setPhase] = useState<AppPhase>('loading')
   const [prediction, setPrediction] = useState<string>('')
   const [error, setError] = useState<string>('')
+  const [scratchProgress, setScratchProgress] = useState(0)
+  const [showFlash, setShowFlash] = useState(false)
+  const [showBubble, setShowBubble] = useState(false)
 
   const getTelegram = () => window.Telegram?.WebApp
 
@@ -29,22 +33,45 @@ function App() {
     }
   }, [])
 
+  // Explosion confetti from the center (as per spec)
   const explodeConfetti = useCallback(() => {
-    const duration = 3000
+    // First burst - center explosion
+    confetti({
+      particleCount: 100,
+      spread: 100,
+      origin: { x: 0.5, y: 0.45 }, // Center of the ball
+      colors: ['#7b2cbf', '#00d4ff', '#ffd700', '#ff6b6b', '#ffffff'],
+      startVelocity: 45,
+      gravity: 0.8,
+    })
+
+    // Second burst - delayed for effect
+    setTimeout(() => {
+      confetti({
+        particleCount: 50,
+        spread: 120,
+        origin: { x: 0.5, y: 0.45 },
+        colors: ['#ffd700', '#ffffff', '#00d4ff'],
+        startVelocity: 35,
+      })
+    }, 100)
+
+    // Side confetti streams
+    const duration = 2000
     const end = Date.now() + duration
 
     const colors = ['#7b2cbf', '#00d4ff', '#ffd700', '#ff6b6b']
 
     const frame = () => {
       confetti({
-        particleCount: 3,
+        particleCount: 2,
         angle: 60,
         spread: 55,
         origin: { x: 0, y: 0.7 },
         colors
       })
       confetti({
-        particleCount: 3,
+        particleCount: 2,
         angle: 120,
         spread: 55,
         origin: { x: 1, y: 0.7 },
@@ -104,14 +131,43 @@ function App() {
   }, [fetchPrediction])
 
   const handleReveal = useCallback(() => {
-    setPhase('revealed')
+    // 1. Flash the screen white briefly
+    setShowFlash(true)
+    setTimeout(() => setShowFlash(false), 150)
+
+    // 2. Trigger success haptic
     triggerSuccessHaptic()
+
+    // 3. Explode confetti from center
     explodeConfetti()
+
+    // 4. Change phase to revealed
+    setPhase('revealed')
+
+    // 5. Show prediction bubble after a short delay
+    setTimeout(() => setShowBubble(true), 600)
   }, [triggerSuccessHaptic, explodeConfetti])
+
+  const handleCloseBubble = useCallback(() => {
+    setShowBubble(false)
+  }, [])
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden">
       <InteractiveBackground />
+
+      {/* White flash effect on reveal */}
+      <AnimatePresence>
+        {showFlash && (
+          <motion.div
+            className="fixed inset-0 bg-white z-50 pointer-events-none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Header */}
       <motion.div
@@ -147,9 +203,19 @@ function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              {/* Magic Ball with scratch layer */}
+              {/* Progress text messages - above the ball */}
+              {phase === 'interactive' && (
+                <div className="mb-4">
+                  <ProgressText progress={scratchProgress} isRevealed={false} />
+                </div>
+              )}
+
+              {/* Magic Ball with scratch layer - now with scratchProgress */}
               <div className="relative">
-                <MagicBall>
+                <MagicBall
+                  blurAmount={phase === 'interactive' ? 12 - (scratchProgress / 100) * 12 : 0}
+                  scratchProgress={phase === 'interactive' ? scratchProgress : 0}
+                >
                   <AnimatePresence>
                     {phase === 'revealed' && (
                       <motion.p
@@ -167,13 +233,10 @@ function App() {
                 {/* Scratch layer overlay */}
                 {phase === 'interactive' && (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <ScratchLayer onReveal={handleReveal} />
+                    <ScratchLayer onReveal={handleReveal} onProgress={setScratchProgress} />
                   </div>
                 )}
               </div>
-
-              {/* Stand */}
-              <Stand />
 
               {/* Share button (only after reveal) */}
               <AnimatePresence>
@@ -192,6 +255,13 @@ function App() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Prediction Bubble (popup after reveal) */}
+      <AnimatePresence>
+        {showBubble && (
+          <PredictionBubble prediction={prediction} onClose={handleCloseBubble} />
+        )}
+      </AnimatePresence>
 
       {/* Error message */}
       <AnimatePresence>

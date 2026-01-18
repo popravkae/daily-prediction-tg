@@ -1,13 +1,16 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+import { SCRATCH_SIZE } from '../constants/ballDimensions'
 
 interface ScratchLayerProps {
   onReveal: () => void
+  onProgress?: (progress: number) => void
   revealThreshold?: number
 }
 
-export const ScratchLayer = ({ onReveal, revealThreshold = 60 }: ScratchLayerProps) => {
+export const ScratchLayer = ({ onReveal, onProgress, revealThreshold = 50 }: ScratchLayerProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [scratchProgress, setScratchProgress] = useState(0)
   const [isRevealed, setIsRevealed] = useState(false)
   const isDrawingRef = useRef(false)
   const lastPosRef = useRef({ x: 0, y: 0 })
@@ -22,60 +25,29 @@ export const ScratchLayer = ({ onReveal, revealThreshold = 60 }: ScratchLayerPro
     }
   }, [])
 
-  const calculateRevealPercentage = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number) => {
-    const imageData = ctx.getImageData(0, 0, width, height)
+  const calculateRevealPercentage = useCallback((ctx: CanvasRenderingContext2D, size: number) => {
+    const imageData = ctx.getImageData(0, 0, size, size)
     const pixels = imageData.data
     let transparent = 0
+    const centerX = size / 2
+    const centerY = size / 2
+    const radius = size / 2
+    let totalInCircle = 0
 
-    for (let i = 3; i < pixels.length; i += 4) {
-      if (pixels[i] === 0) transparent++
+    // Считаем только пиксели внутри круга
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const dx = x - centerX
+        const dy = y - centerY
+        if (dx * dx + dy * dy <= radius * radius) {
+          totalInCircle++
+          const i = (y * size + x) * 4 + 3 // alpha channel
+          if (pixels[i] === 0) transparent++
+        }
+      }
     }
 
-    return (transparent / (pixels.length / 4)) * 100
-  }, [])
-
-  const generateFogTexture = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number) => {
-    // Create procedural fog using multiple layers
-    const gradient = ctx.createRadialGradient(
-      width / 2, height / 2, 0,
-      width / 2, height / 2, Math.max(width, height) / 2
-    )
-    gradient.addColorStop(0, 'rgba(123, 44, 191, 0.9)')
-    gradient.addColorStop(0.5, 'rgba(75, 20, 120, 0.95)')
-    gradient.addColorStop(1, 'rgba(26, 10, 46, 1)')
-
-    ctx.fillStyle = gradient
-    ctx.fillRect(0, 0, width, height)
-
-    // Add noise particles for texture
-    for (let i = 0; i < 2000; i++) {
-      const x = Math.random() * width
-      const y = Math.random() * height
-      const size = Math.random() * 3
-      const alpha = Math.random() * 0.3
-
-      ctx.beginPath()
-      ctx.arc(x, y, size, 0, Math.PI * 2)
-      ctx.fillStyle = `rgba(200, 180, 255, ${alpha})`
-      ctx.fill()
-    }
-
-    // Add swirl patterns
-    for (let i = 0; i < 15; i++) {
-      const x = Math.random() * width
-      const y = Math.random() * height
-      const radius = 20 + Math.random() * 60
-
-      const swirlGradient = ctx.createRadialGradient(x, y, 0, x, y, radius)
-      swirlGradient.addColorStop(0, 'rgba(0, 212, 255, 0.15)')
-      swirlGradient.addColorStop(0.5, 'rgba(123, 44, 191, 0.1)')
-      swirlGradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
-
-      ctx.beginPath()
-      ctx.arc(x, y, radius, 0, Math.PI * 2)
-      ctx.fillStyle = swirlGradient
-      ctx.fill()
-    }
+    return totalInCircle > 0 ? (transparent / totalInCircle) * 100 : 0
   }, [])
 
   const scratch = useCallback((x: number, y: number) => {
@@ -89,20 +61,28 @@ export const ScratchLayer = ({ onReveal, revealThreshold = 60 }: ScratchLayerPro
     const canvasX = (x - rect.left) * (canvas.width / rect.width)
     const canvasY = (y - rect.top) * (canvas.height / rect.height)
 
+    // Проверяем, что точка внутри круга
+    const centerX = canvas.width / 2
+    const centerY = canvas.height / 2
+    const radius = canvas.width / 2
+    const dx = canvasX - centerX
+    const dy = canvasY - centerY
+    if (dx * dx + dy * dy > radius * radius) return
+
     ctx.globalCompositeOperation = 'destination-out'
 
     // Draw scratching line
     ctx.beginPath()
     ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y)
     ctx.lineTo(canvasX, canvasY)
-    ctx.lineWidth = 50
+    ctx.lineWidth = 45
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
     ctx.stroke()
 
     // Also draw a circle at current position
     ctx.beginPath()
-    ctx.arc(canvasX, canvasY, 25, 0, Math.PI * 2)
+    ctx.arc(canvasX, canvasY, 22, 0, Math.PI * 2)
     ctx.fill()
 
     lastPosRef.current = { x: canvasX, y: canvasY }
@@ -111,12 +91,15 @@ export const ScratchLayer = ({ onReveal, revealThreshold = 60 }: ScratchLayerPro
     triggerHaptic()
 
     // Check reveal percentage
-    const percentage = calculateRevealPercentage(ctx, canvas.width, canvas.height)
+    const percentage = calculateRevealPercentage(ctx, canvas.width)
+    setScratchProgress(percentage)
+    onProgress?.(percentage)
+
     if (percentage >= revealThreshold && !isRevealed) {
       setIsRevealed(true)
       onReveal()
     }
-  }, [isRevealed, onReveal, revealThreshold, triggerHaptic, calculateRevealPercentage])
+  }, [isRevealed, onReveal, onProgress, revealThreshold, triggerHaptic, calculateRevealPercentage])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -125,12 +108,21 @@ export const ScratchLayer = ({ onReveal, revealThreshold = 60 }: ScratchLayerPro
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // Set canvas size
-    canvas.width = 320
-    canvas.height = 320
+    // Круглый canvas по размеру шара
+    canvas.width = SCRATCH_SIZE
+    canvas.height = SCRATCH_SIZE
 
-    generateFogTexture(ctx, canvas.width, canvas.height)
-  }, [generateFogTexture])
+    const centerX = SCRATCH_SIZE / 2
+    const centerY = SCRATCH_SIZE / 2
+    const radius = SCRATCH_SIZE / 2
+
+    // Рисуем полупрозрачный слой для блюра (легкий эффект тумана)
+    // Этот слой стирается пользователем, открывая четкое изображение под ним
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(200, 180, 220, 0.35)' // Легкий фиолетовый оттенок
+    ctx.fill()
+  }, [])
 
   const handleStart = (x: number, y: number) => {
     const canvas = canvasRef.current
@@ -153,49 +145,67 @@ export const ScratchLayer = ({ onReveal, revealThreshold = 60 }: ScratchLayerPro
     isDrawingRef.current = false
   }
 
-  if (isRevealed) return null
-
   return (
-    <motion.div
-      className="absolute inset-0 flex items-center justify-center pointer-events-auto"
-      initial={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      <div className="relative">
-        <canvas
-          ref={canvasRef}
-          className="rounded-full cursor-pointer touch-none"
-          style={{ width: 280, height: 280 }}
-          onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
-          onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
-          onMouseUp={handleEnd}
-          onMouseLeave={handleEnd}
-          onTouchStart={(e) => {
-            e.preventDefault()
-            const touch = e.touches[0]
-            handleStart(touch.clientX, touch.clientY)
-          }}
-          onTouchMove={(e) => {
-            e.preventDefault()
-            const touch = e.touches[0]
-            handleMove(touch.clientX, touch.clientY)
-          }}
-          onTouchEnd={handleEnd}
-        />
-
-        {/* Hint text */}
+    <AnimatePresence>
+      {!isRevealed && (
         <motion.div
-          className="absolute inset-0 flex items-center justify-center pointer-events-none"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
+          className="absolute pointer-events-auto"
+          style={{
+            // Центрируем круг в области шара
+            // Ball: 320x308, Stand: 359x110, Total container: 359x418
+            // Ball starts at top of the container, centered horizontally
+            top: 14, // небольшой отступ от верха шара
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: SCRATCH_SIZE,
+            height: SCRATCH_SIZE,
+          }}
+          initial={{ opacity: 1 }}
+          exit={{ opacity: 0, scale: 1.1 }}
+          transition={{ duration: 0.5 }}
         >
-          <p className="text-white/70 text-lg font-medium text-center px-8">
-            Потри кришталеву кулю
-          </p>
+          <div className="relative w-full h-full flex items-center justify-center">
+            {/* Canvas для стирания - круглый слой блюра поверх шара */}
+            {/* Стирание убирает блюр, открывая четкое изображение */}
+            <canvas
+              ref={canvasRef}
+              className="cursor-pointer touch-none absolute"
+              style={{
+                width: SCRATCH_SIZE,
+                height: SCRATCH_SIZE,
+                borderRadius: '50%',
+              }}
+              onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
+              onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
+              onMouseUp={handleEnd}
+              onMouseLeave={handleEnd}
+              onTouchStart={(e) => {
+                e.preventDefault()
+                const touch = e.touches[0]
+                handleStart(touch.clientX, touch.clientY)
+              }}
+              onTouchMove={(e) => {
+                e.preventDefault()
+                const touch = e.touches[0]
+                handleMove(touch.clientX, touch.clientY)
+              }}
+              onTouchEnd={handleEnd}
+            />
+
+            {/* Hint text */}
+            <motion.div
+              className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: scratchProgress < 10 ? 1 : 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <p className="text-white/90 text-base font-medium text-center px-4 drop-shadow-lg">
+                Потри кришталеву кулю
+              </p>
+            </motion.div>
+          </div>
         </motion.div>
-      </div>
-    </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
