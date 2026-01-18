@@ -116,23 +116,24 @@ async function generatePrediction(firstName) {
     return getRandomFallbackPrediction();
   }
 
-  // System prompt from spec - "Pharmacist-Mage" for ANC pharmacy brand
+  // System prompt - "Pharmacist-Mage" for ANC pharmacy brand
   const systemPrompt = `You are a quirky, positive, and slightly cynical "Pharmacist-Mage" for the ANC pharmacy brand.
 Your task is to generate a Daily Prediction for the user.
 
 constraints:
 1. Language: Ukrainian.
 2. Length: Max 150 characters (Very short and punchy).
-3. Tone: Humorous, warm, neutral, slightly magical but grounded in reality.
-4. Topics: Luck, Energy, Vitamins, Sleep, Nerves, Cats, Work-Life Balance.
-5. RESTRICTIONS: No politics, no religion, no offensive content, no medical diagnoses.
+3. Tone: Inspiring, motivational, warm, lighthearted.
+4. Topics: Success, Luck, Energy, Inspiration, Good Mood, Small Victories.
+5. RESTRICTIONS: No politics, no religion, no offensive content, no medical advice/diagnoses (no mentions of pills, vitamins, or symptoms).
+6. GRAMMAR CONSTRAINT: Do NOT use the informal "ty" (ти/твій). Use impersonal constructions or general statements (e.g., instead of "You will succeed", use "Success is inevitable").
 
 Style Examples:
-- "Зорі кажуть: сьогодні ідеальний день, щоб нічого не робити, але після роботи."
-- "Твій рівень удачі сьогодні: 'Знайшов 50 гривень у зимовій куртці'."
-- "Не приймай все близько до серця, приймай вітаміни."
-- "Сьогодні ти магніт для успіху. І для котиків."
-- "Енергія зашкалює! Можеш заряджати телефони поглядом."`;
+- "Зорі підказують: саме час для сміливих планів та смачної кави."
+- "Рівень удачі сьогодні максимальний: всі світлофори будуть зеленими."
+- "Рецепт дня: побільше посмішок і жодних зайвих турбот."
+- "Сьогодні ідеальний момент, щоб повірити в диво та власні сили."
+- "Енергія просто зашкалює! Всі перешкоди долаються легко і невимушено."`;
 
   const userPrompt = firstName
     ? `Generate a short daily prediction for ${firstName}. Max 150 characters.`
@@ -171,17 +172,17 @@ Style Examples:
   }
 }
 
-// Fallback predictions
+// Fallback predictions (matching new style - no "ти/твій", inspirational tone)
 function getRandomFallbackPrediction() {
   const predictions = [
-    "Зірки кажуть: сьогодні вітамін С - твій найкращий друг. І трохи сну не завадить!",
-    "Магія підказує: випий води і посміхнись. Нерви заспокояться самі.",
-    "Кристал бачить: сьогодні твоя удача в зеленому чаї та ранковій прогулянці.",
-    "Провидіння шепоче: менше кави, більше обіймів. Так і живемо!",
-    "Зелье дня: добра думка + вітамін D = успішний день.",
-    "Карти таро радять: їж овочі та не забувай про друзів.",
-    "Місяць віщує: сьогодні найкращі ліки - це сміх і свіже повітря.",
-    "Аптечна магія: вітамін В12 та гарний настрій творять чудеса!"
+    "Зорі підказують: саме час для сміливих планів та смачної кави.",
+    "Рівень удачі сьогодні максимальний: всі світлофори будуть зеленими.",
+    "Рецепт дня: побільше посмішок і жодних зайвих турбот.",
+    "Сьогодні ідеальний момент, щоб повірити в диво та власні сили.",
+    "Енергія просто зашкалює! Всі перешкоди долаються легко і невимушено.",
+    "Магія дня: маленькі перемоги ведуть до великого успіху.",
+    "Всесвіт шепоче: сьогодні все складеться найкращим чином.",
+    "Час діяти! Успіх вже чекає за рогом."
   ];
 
   return predictions[Math.floor(Math.random() * predictions.length)];
