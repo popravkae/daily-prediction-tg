@@ -1,5 +1,6 @@
 import { motion, useMotionValue, useTransform, useSpring } from 'framer-motion'
 import { useEffect, useMemo } from 'react'
+import { BALL_WIDTH, BALL_HEIGHT } from '../constants/ballDimensions'
 
 interface EnergyAuraProps {
   progress: number // 0-100
@@ -13,13 +14,8 @@ export const EnergyAura = ({ progress }: EnergyAuraProps) => {
     motionProgress.set(progress)
   }, [progress, motionProgress])
 
-  // Transform progress to various properties
-  // 0-30%: Blue, Low Opacity (0.2), Slow Rotation
-  // 30-70%: Purple, Medium Opacity (0.6), Rotation speed doubles
-  // 70-90%: Gold/White, High Opacity (1.0), Fast Rotation, Pulsing Scale
-  // 90-99%: Critical Mass - Rumble/Shake
-
-  const opacity = useTransform(motionProgress, [0, 30, 70, 90], [0.2, 0.4, 0.8, 1.0])
+  // Transform progress to opacity using useTransform
+  const opacity = useTransform(motionProgress, [0, 30, 70, 90], [0.3, 0.5, 0.8, 1.0])
   const scale = useTransform(motionProgress, [0, 30, 70, 90, 100], [1, 1.05, 1.15, 1.25, 1.3])
 
   // Spring for smooth, bouncy scale
@@ -31,58 +27,84 @@ export const EnergyAura = ({ progress }: EnergyAuraProps) => {
 
   // Calculate rotation speed based on progress
   const rotationDuration = useMemo(() => {
-    if (progress < 30) return 8 // Slow
-    if (progress < 70) return 4 // Medium
-    if (progress < 90) return 2 // Fast
-    return 1 // Very fast
+    if (progress < 30) return 10 // Slow
+    if (progress < 70) return 5 // Medium
+    if (progress < 90) return 2.5 // Fast
+    return 1.2 // Very fast
   }, [progress])
 
-  // Color gradient based on progress
-  const getGradientColors = () => {
-    if (progress < 30) {
-      // Blue phase
-      return {
-        inner: 'rgba(0, 150, 255, 0.3)',
-        outer: 'rgba(0, 100, 200, 0.1)'
-      }
-    } else if (progress < 70) {
-      // Purple phase
-      return {
-        inner: 'rgba(138, 43, 226, 0.5)',
-        outer: 'rgba(75, 0, 130, 0.2)'
-      }
-    } else {
-      // Gold/White phase
-      return {
-        inner: 'rgba(255, 215, 0, 0.7)',
-        outer: 'rgba(255, 255, 255, 0.3)'
-      }
-    }
-  }
+  // Get phase-based colors
+  const phase = useMemo(() => {
+    if (progress < 30) return 'blue'
+    if (progress < 70) return 'purple'
+    if (progress < 90) return 'gold'
+    return 'critical'
+  }, [progress])
 
-  const colors = getGradientColors()
+  // Color configurations for each phase
+  const colors = useMemo(() => {
+    switch (phase) {
+      case 'blue':
+        return {
+          primary: 'rgba(0, 180, 255, 0.5)',
+          secondary: 'rgba(0, 100, 200, 0.3)',
+          glow: 'rgba(0, 150, 255, 0.4)',
+          particle: '#00b4ff'
+        }
+      case 'purple':
+        return {
+          primary: 'rgba(147, 51, 234, 0.6)',
+          secondary: 'rgba(88, 28, 135, 0.4)',
+          glow: 'rgba(147, 51, 234, 0.5)',
+          particle: '#9333ea'
+        }
+      case 'gold':
+        return {
+          primary: 'rgba(255, 200, 0, 0.7)',
+          secondary: 'rgba(255, 150, 0, 0.5)',
+          glow: 'rgba(255, 215, 0, 0.6)',
+          particle: '#ffd700'
+        }
+      case 'critical':
+        return {
+          primary: 'rgba(255, 255, 255, 0.8)',
+          secondary: 'rgba(255, 215, 0, 0.6)',
+          glow: 'rgba(255, 255, 255, 0.7)',
+          particle: '#ffffff'
+        }
+    }
+  }, [phase])
 
   // Pulsing effect for high progress
   const shouldPulse = progress >= 70
+  const isCritical = progress >= 90
+
+  // Aura size based on ball dimensions
+  const auraSize = Math.max(BALL_WIDTH, BALL_HEIGHT) + 80
 
   return (
     <motion.div
-      className="absolute inset-0 pointer-events-none"
+      className="absolute pointer-events-none"
       style={{
+        width: auraSize,
+        height: auraSize,
+        left: '50%',
+        top: BALL_HEIGHT / 2,
+        transform: 'translate(-50%, -50%)',
         scale: springScale,
         opacity,
       }}
     >
-      {/* Outer aura ring */}
+      {/* Outer rotating ring */}
       <motion.div
-        className="absolute -inset-12"
+        className="absolute inset-0"
         style={{
-          background: `radial-gradient(circle, ${colors.inner} 0%, ${colors.outer} 50%, transparent 70%)`,
+          background: `conic-gradient(from 0deg, ${colors.primary}, transparent, ${colors.secondary}, transparent, ${colors.primary})`,
           borderRadius: '50%',
+          filter: 'blur(20px)',
         }}
         animate={{
           rotate: 360,
-          scale: shouldPulse ? [1, 1.08, 1] : 1,
         }}
         transition={{
           rotate: {
@@ -90,63 +112,72 @@ export const EnergyAura = ({ progress }: EnergyAuraProps) => {
             repeat: Infinity,
             ease: 'linear',
           },
-          scale: shouldPulse ? {
-            duration: 0.8,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          } : undefined,
         }}
       />
 
-      {/* Inner glow ring */}
+      {/* Middle pulsing glow */}
       <motion.div
-        className="absolute -inset-6"
+        className="absolute inset-4"
         style={{
-          background: `radial-gradient(circle, ${colors.inner} 0%, transparent 60%)`,
+          background: `radial-gradient(circle, ${colors.glow} 0%, transparent 70%)`,
           borderRadius: '50%',
-          filter: 'blur(8px)',
+        }}
+        animate={{
+          scale: shouldPulse ? [1, 1.15, 1] : 1,
+          opacity: shouldPulse ? [0.6, 1, 0.6] : 0.5,
+        }}
+        transition={{
+          duration: isCritical ? 0.4 : 0.8,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
+
+      {/* Inner counter-rotating ring */}
+      <motion.div
+        className="absolute inset-8"
+        style={{
+          background: `conic-gradient(from 180deg, transparent, ${colors.secondary}, transparent, ${colors.primary}, transparent)`,
+          borderRadius: '50%',
+          filter: 'blur(15px)',
         }}
         animate={{
           rotate: -360,
-          opacity: shouldPulse ? [0.5, 1, 0.5] : 0.6,
         }}
         transition={{
           rotate: {
-            duration: rotationDuration * 1.5,
+            duration: rotationDuration * 1.3,
             repeat: Infinity,
             ease: 'linear',
           },
-          opacity: shouldPulse ? {
-            duration: 0.6,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          } : undefined,
         }}
       />
 
-      {/* Energy particles for high progress */}
-      {progress >= 70 && (
+      {/* Energy particles - appear at 30%+ */}
+      {progress >= 30 && (
         <>
-          {[...Array(6)].map((_, i) => (
+          {[...Array(8)].map((_, i) => (
             <motion.div
               key={i}
-              className="absolute w-2 h-2 rounded-full"
+              className="absolute rounded-full"
               style={{
-                background: progress >= 90 ? '#ffd700' : '#8a2be2',
-                boxShadow: `0 0 10px ${progress >= 90 ? '#ffd700' : '#8a2be2'}`,
+                width: progress >= 70 ? 8 : 6,
+                height: progress >= 70 ? 8 : 6,
+                background: colors.particle,
+                boxShadow: `0 0 ${progress >= 70 ? 15 : 10}px ${colors.particle}`,
                 left: '50%',
                 top: '50%',
               }}
               animate={{
-                x: [0, Math.cos((i * 60) * Math.PI / 180) * 160, 0],
-                y: [0, Math.sin((i * 60) * Math.PI / 180) * 160, 0],
+                x: [0, Math.cos((i * 45) * Math.PI / 180) * (auraSize / 2 - 20), 0],
+                y: [0, Math.sin((i * 45) * Math.PI / 180) * (auraSize / 2 - 20), 0],
                 opacity: [0, 1, 0],
-                scale: [0.5, 1.5, 0.5],
+                scale: [0.5, 1.2, 0.5],
               }}
               transition={{
-                duration: 1.5,
+                duration: progress >= 70 ? 1.2 : 2,
                 repeat: Infinity,
-                delay: i * 0.2,
+                delay: i * 0.15,
                 ease: 'easeInOut',
               }}
             />
@@ -154,28 +185,58 @@ export const EnergyAura = ({ progress }: EnergyAuraProps) => {
         </>
       )}
 
-      {/* Critical mass effect - sparks */}
-      {progress >= 90 && (
+      {/* Critical mass sparks - 90%+ */}
+      {isCritical && (
         <>
-          {[...Array(12)].map((_, i) => (
+          {[...Array(16)].map((_, i) => (
             <motion.div
               key={`spark-${i}`}
-              className="absolute w-1 h-1 rounded-full bg-white"
+              className="absolute rounded-full"
               style={{
+                width: 3,
+                height: 3,
+                background: '#ffffff',
+                boxShadow: '0 0 8px #fff, 0 0 16px #ffd700',
                 left: '50%',
                 top: '50%',
-                boxShadow: '0 0 6px #fff, 0 0 12px #ffd700',
               }}
               animate={{
-                x: [0, Math.cos((i * 30) * Math.PI / 180) * (100 + Math.random() * 60)],
-                y: [0, Math.sin((i * 30) * Math.PI / 180) * (100 + Math.random() * 60)],
+                x: [0, Math.cos((i * 22.5) * Math.PI / 180) * (80 + Math.random() * 40)],
+                y: [0, Math.sin((i * 22.5) * Math.PI / 180) * (80 + Math.random() * 40)],
                 opacity: [1, 0],
-                scale: [1, 0],
+                scale: [1, 0.3],
               }}
               transition={{
-                duration: 0.6,
+                duration: 0.5,
                 repeat: Infinity,
-                delay: i * 0.08,
+                delay: i * 0.05,
+                ease: 'easeOut',
+              }}
+            />
+          ))}
+
+          {/* Lightning bolts effect */}
+          {[...Array(4)].map((_, i) => (
+            <motion.div
+              key={`bolt-${i}`}
+              className="absolute"
+              style={{
+                width: 2,
+                height: 40,
+                background: 'linear-gradient(to bottom, #ffffff, transparent)',
+                left: '50%',
+                top: '50%',
+                transformOrigin: 'top center',
+                rotate: i * 90,
+              }}
+              animate={{
+                opacity: [0, 1, 0],
+                scaleY: [0.5, 1, 0.5],
+              }}
+              transition={{
+                duration: 0.3,
+                repeat: Infinity,
+                delay: i * 0.1,
                 ease: 'easeOut',
               }}
             />

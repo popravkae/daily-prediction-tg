@@ -34,11 +34,33 @@ export const MagicBall = ({
 
   const getTelegram = () => window.Telegram?.WebApp
 
+  // Throttle haptic to avoid too many calls
+  const lastHapticRef = useRef(0)
+
   const triggerHaptic = useCallback(() => {
+    const now = Date.now()
+    // Throttle to max 1 haptic per 50ms
+    if (now - lastHapticRef.current < 50) return
+    lastHapticRef.current = now
+
     try {
-      getTelegram()?.HapticFeedback?.impactOccurred('light')
+      // Try Telegram WebApp haptic first
+      const tg = getTelegram()
+      if (tg?.HapticFeedback) {
+        tg.HapticFeedback.impactOccurred('light')
+        return
+      }
     } catch {
-      // Haptic not available
+      // Telegram haptic failed
+    }
+
+    // Fallback to Web Vibration API
+    try {
+      if (navigator.vibrate) {
+        navigator.vibrate(10)
+      }
+    } catch {
+      // Vibration not available
     }
   }, [])
 
@@ -116,8 +138,9 @@ export const MagicBall = ({
 
   const blurredImageRef = useRef<HTMLImageElement | null>(null)
 
-  // Canvas dimensions - slightly smaller circle inside the ball
-  const CANVAS_SIZE = Math.min(BALL_WIDTH, BALL_HEIGHT) - 30
+  // Canvas dimensions - match the ball's inner sphere area
+  // Ball SVG has the sphere taking up most of the image
+  const CANVAS_SIZE = Math.min(BALL_WIDTH, BALL_HEIGHT) - 10
 
   // Load blurred ball image into canvas
   useEffect(() => {
