@@ -246,7 +246,7 @@ export const MagicBall = ({
             className="w-full h-full object-contain absolute inset-0"
           />
 
-          {/* Layer 2: Blurred ball overlay - opacity decreases as you scratch */}
+          {/* Layer 2: Frosted glass overlay - fades out as you scratch to reveal clear ball */}
           {isInteractive && !isRevealed && (
             <motion.div
               className="absolute inset-0 pointer-events-none"
@@ -256,11 +256,20 @@ export const MagicBall = ({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.1 }}
             >
+              {/* Heavy blur + brightness to create frosted glass effect */}
               <img
                 src="/images/ball.svg"
                 alt=""
                 className="w-full h-full object-contain"
-                style={{ filter: 'blur(12px)' }}
+                style={{ filter: 'blur(25px) brightness(1.3) saturate(0.7)' }}
+              />
+              {/* Semi-transparent overlay for more frost */}
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  background: 'radial-gradient(circle, rgba(200, 180, 220, 0.4) 0%, rgba(180, 160, 200, 0.5) 70%, transparent 100%)',
+                  margin: '5%',
+                }}
               />
             </motion.div>
           )}
