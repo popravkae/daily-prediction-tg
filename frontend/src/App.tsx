@@ -140,7 +140,6 @@ function App() {
         <h1 className="text-2xl font-bold text-white/90">
           Пророцтво дня
         </h1>
-        <p className="text-sm text-white/50 mt-1">ANC Pharmacy</p>
       </motion.div>
 
       {/* Main content */}

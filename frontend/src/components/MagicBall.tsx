@@ -404,7 +404,7 @@ export const MagicBall = ({
           </div>
         </div>
 
-        {/* Stand SVG - no blur, positioned directly under the ball with 0px gap */}
+        {/* Stand SVG - no blur, positioned directly under the ball with negative margin to overlap */}
         <img
           src="/images/stand.svg"
           alt="Stand"
@@ -412,7 +412,7 @@ export const MagicBall = ({
           style={{
             width: STAND_WIDTH,
             height: STAND_HEIGHT,
-            marginTop: 0,
+            marginTop: -20,
           }}
         />
       </motion.div>
