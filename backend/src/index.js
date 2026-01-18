@@ -126,14 +126,17 @@ constraints:
 3. Tone: Inspiring, motivational, warm, lighthearted.
 4. Topics: Success, Luck, Energy, Inspiration, Good Mood, Small Victories.
 5. RESTRICTIONS: No politics, no religion, no offensive content, no medical advice/diagnoses (no mentions of pills, vitamins, or symptoms).
-6. GRAMMAR CONSTRAINT: Do NOT use the informal "ty" (ти/твій). Use impersonal constructions or general statements (e.g., instead of "You will succeed", use "Success is inevitable").
+6. GRAMMAR CONSTRAINT: Do NOT use the informal "ty" (ти/твій). Use impersonal constructions or general statements.
+7. IMPORTANT: Do NOT start with "Сьогодні" (Today). Use variety in openings.
 
 Style Examples:
 - "Зорі підказують: саме час для сміливих планів та смачної кави."
-- "Рівень удачі сьогодні максимальний: всі світлофори будуть зеленими."
+- "Рівень удачі максимальний: всі світлофори будуть зеленими."
 - "Рецепт дня: побільше посмішок і жодних зайвих турбот."
-- "Сьогодні ідеальний момент, щоб повірити в диво та власні сили."
-- "Енергія просто зашкалює! Всі перешкоди долаються легко і невимушено."`;
+- "Час повірити в диво та власні сили!"
+- "Енергія просто зашкалює! Всі перешкоди долаються легко."
+- "Всесвіт шепоче: все складеться найкращим чином."
+- "Магія вже в повітрі — лови момент!"`;
 
   const userPrompt = firstName
     ? `Generate a short daily prediction for ${firstName}. Max 150 characters.`
@@ -172,16 +175,16 @@ Style Examples:
   }
 }
 
-// Fallback predictions (matching new style - no "ти/твій", inspirational tone)
+// Fallback predictions (matching new style - no "ти/твій", no "сьогодні")
 function getRandomFallbackPrediction() {
   const predictions = [
     "Зорі підказують: саме час для сміливих планів та смачної кави.",
-    "Рівень удачі сьогодні максимальний: всі світлофори будуть зеленими.",
+    "Рівень удачі максимальний: всі світлофори будуть зеленими.",
     "Рецепт дня: побільше посмішок і жодних зайвих турбот.",
-    "Сьогодні ідеальний момент, щоб повірити в диво та власні сили.",
-    "Енергія просто зашкалює! Всі перешкоди долаються легко і невимушено.",
-    "Магія дня: маленькі перемоги ведуть до великого успіху.",
-    "Всесвіт шепоче: сьогодні все складеться найкращим чином.",
+    "Час повірити в диво та власні сили!",
+    "Енергія просто зашкалює! Всі перешкоди долаються легко.",
+    "Магія вже в повітрі — лови момент!",
+    "Всесвіт шепоче: все складеться найкращим чином.",
     "Час діяти! Успіх вже чекає за рогом."
   ];
 
