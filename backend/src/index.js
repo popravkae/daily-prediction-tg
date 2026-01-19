@@ -48,13 +48,28 @@ app.post('/api/predict', async (req, res) => {
       });
     }
 
-    // Check for existing prediction within last 24 hours
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    // Check for existing prediction since start of today (Kyiv timezone)
+    // Day resets at 00:00 Kyiv time, new post appears at 08:00 Kyiv time
+    const now = new Date();
+
+    // Get today's date in Kyiv timezone (YYYY-MM-DD format)
+    const kyivDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' });
+
+    // Get UTC offset for Kyiv right now (handles DST automatically)
+    const kyivNow = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Kyiv' }));
+    const utcNow = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const offsetMs = kyivNow.getTime() - utcNow.getTime();
+
+    // Calculate Kyiv midnight in UTC
+    const [year, month, day] = kyivDateStr.split('-').map(Number);
+    const kyivMidnight = new Date(Date.UTC(year, month - 1, day, 0, 0, 0) - offsetMs);
+
+    const startOfTodayKyiv = kyivMidnight;
 
     const existingPrediction = await prisma.prediction.findFirst({
       where: {
         userId: user.id,
-        createdAt: { gte: twentyFourHoursAgo }
+        createdAt: { gte: startOfTodayKyiv }
       },
       orderBy: { createdAt: 'desc' }
     });
