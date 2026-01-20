@@ -4,6 +4,20 @@
 
 **Daily Prediction** — Telegram Mini App "Пророцтво дня" для аптечного бренду ANC. Інтерактивна магічна куля з щоденними передбаченнями, згенерованими AI.
 
+## Швидкі посилання
+
+| Компонент | URL | Деплой |
+|-----------|-----|--------|
+| **Frontend** | https://daily-prediction.vercel.app | Vercel (автодеплой з GitHub) |
+| **Backend** | https://backend-production-3436.up.railway.app | Railway |
+| **Scheduler** | https://daily-prediction-scheduler-production.up.railway.app | Railway |
+| **GitHub** | https://github.com/popravkae/daily-prediction-tg | - |
+| **Mini App** | https://t.me/anc_pobajania_bot?startapp=daily | - |
+| **Bot** | @anc_pobajania_bot | BotFather |
+
+### Railway Dashboard
+- Проект: https://railway.com/project/1aef6745-6355-4f0e-b179-9d2b3239c16e
+
 ## Архітектура
 
 ```
@@ -32,6 +46,15 @@ daily-prediction/
 │   │   └── index.css       # Глобальні стилі
 │   ├── package.json
 │   └── vite.config.ts
+│
+├── scheduler/              # Node.js + Express + node-cron
+│   ├── src/
+│   │   └── index.js        # Cron-задачі та API
+│   ├── package.json
+│   └── railway.json        # Конфігурація Railway
+│
+├── bot/                    # Python + aiogram (опціонально)
+│   └── bot.py              # Telegram бот
 │
 └── README.md
 ```
@@ -133,13 +156,19 @@ VITE_API_URL=https://your-backend.railway.app
 ### GitHub Repository
 - URL: https://github.com/popravkae/daily-prediction-tg
 
-### Railway (Backend + PostgreSQL)
-- Проект: `daily-prediction-backend`
-- URL: https://backend-production-3436.up.railway.app
+### Railway (Backend + Scheduler + PostgreSQL)
+- Dashboard: https://railway.com/project/1aef6745-6355-4f0e-b179-9d2b3239c16e
+- Backend URL: https://backend-production-3436.up.railway.app
+- Scheduler URL: https://daily-prediction-scheduler-production.up.railway.app
 - База даних: PostgreSQL (автоматично створена)
 
 ### Vercel (Frontend)
-- URL: https://daily-prediction.vercel.app (потрібно задеплоїти)
+- URL: https://daily-prediction.vercel.app
+
+### Telegram
+- Bot: @anc_pobajania_bot
+- Bot Token: `7621065770:AAGcHj_IE416pP0fM1EcrZveXsSmVPeIgKc`
+- Mini App URL: https://t.me/anc_pobajania_bot?startapp=daily
 
 ## Деплой
 
@@ -157,7 +186,35 @@ VITE_API_URL=https://your-backend.railway.app
 4. Для деплою з локальної папки:
 ```bash
 cd backend
-railway up
+railway up --service daily-prediction-backend
+```
+
+### Scheduler на Railway
+
+Scheduler публікує пости в канал щодня о 08:00 та видаляє о 00:00 (Київ).
+
+1. Змінні середовища:
+   - `BOT_TOKEN` — токен Telegram бота
+   - `CHANNEL_ID` — ID каналу (за замовчуванням: `-1002959175149`)
+   - `MINI_APP_URL` — посилання на Mini App (за замовчуванням: `https://t.me/anc_pobajania_bot?startapp=daily`)
+   - `IMAGE_URL` — URL картинки для поста
+   - `PORT` — 3000
+
+2. Для деплою:
+```bash
+cd scheduler
+railway up --service daily-prediction-scheduler
+```
+
+3. API endpoints:
+   - `GET /health` — статус сервера
+   - `GET /status` — поточний стан (message ID, URL, розклад)
+   - `POST /publish` — вручну опублікувати пост
+   - `POST /delete` — вручну видалити пост
+
+4. Перевірка статусу:
+```bash
+curl https://daily-prediction-scheduler-production.up.railway.app/status
 ```
 
 ### Frontend на Vercel
@@ -178,6 +235,24 @@ vercel --prod
 ```
 VITE_API_URL=https://backend-production-3436.up.railway.app
 ```
+
+## Mini App посилання
+
+### Типи посилань
+
+| Тип | URL | Опис |
+|-----|-----|------|
+| **Main Mini App** | `https://t.me/anc_pobajania_bot?startapp=daily` | Головний Mini App, без повторних підтверджень |
+| **Direct Link** | `https://t.me/anc_pobajania_bot/prediction` | Direct Link Mini App (питає підтвердження з inline кнопок) |
+| **Deep Link (tg://)** | `tg://resolve?domain=anc_pobajania_bot&startapp=daily` | Альтернативний формат |
+
+### Чому використовуємо Main Mini App (`?startapp=`)
+
+При використанні Direct Link (`/prediction`) в inline кнопках каналу, Telegram **завжди** питає підтвердження користувача (це захист безпеки).
+
+Main Mini App (`?startapp=`) використовує інший API метод (`messages.requestMainWebView`) і не потребує підтвердження після першої авторизації.
+
+**Документація:** https://core.telegram.org/api/bots/webapps#main-mini-apps
 
 ## Функціонал додатку
 
