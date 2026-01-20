@@ -5,7 +5,7 @@ const fetch = require('node-fetch');
 // Configuration
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHANNEL_ID = process.env.CHANNEL_ID || '-1002959175149';
-const WEB_APP_URL = process.env.WEB_APP_URL || 'https://daily-prediction.vercel.app/';
+const MINI_APP_URL = process.env.MINI_APP_URL || 'https://t.me/anc_pobajania_bot?startapp=daily';
 const IMAGE_URL = process.env.IMAGE_URL || 'https://drive.google.com/uc?export=download&id=1-FeAzDErrhvYbfuFjNFAvFyCxOlGJ55W';
 const PORT = process.env.PORT || 3000;
 
@@ -38,9 +38,7 @@ async function publishDailyPost() {
         [
           {
             text: '🔮 Хочу передбачення!',
-            web_app: {
-              url: WEB_APP_URL
-            }
+            url: MINI_APP_URL
           }
         ]
       ]
@@ -168,7 +166,7 @@ app.get('/status', (req, res) => {
   res.json({
     currentMessageId,
     channelId: CHANNEL_ID,
-    webAppUrl: WEB_APP_URL,
+    miniAppUrl: MINI_APP_URL,
     schedules: {
       publish: '08:00 Europe/Kyiv',
       delete: '00:00 Europe/Kyiv'
@@ -179,7 +177,7 @@ app.get('/status', (req, res) => {
 app.listen(PORT, () => {
   logWithTime(`Scheduler server running on port ${PORT}`);
   logWithTime(`Channel ID: ${CHANNEL_ID}`);
-  logWithTime(`Web App URL: ${WEB_APP_URL}`);
+  logWithTime(`Mini App URL: ${MINI_APP_URL}`);
   logWithTime('Cron jobs scheduled:');
   logWithTime('  - Publish: 08:00 Kyiv time');
   logWithTime('  - Delete: 00:00 Kyiv time');
